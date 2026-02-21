@@ -26,3 +26,24 @@ async def test_login_nonexistent_user(client, db_session):
 async def test_login_invalid_email(client, db_session):
     resp = await client.post("/api/login", json={"email": "not-an-email", "password": "password123"})
     assert resp.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_register_success(client, db_session):
+    resp = await client.post("/api/register", json={"email": "new@example.com", "password": "secret123"})
+    assert resp.status_code == 201
+    data = resp.json()
+    assert "access_token" in data
+    assert data["token_type"] == "bearer"
+
+
+@pytest.mark.asyncio
+async def test_register_duplicate_email(client, test_user):
+    resp = await client.post("/api/register", json={"email": "test@example.com", "password": "secret123"})
+    assert resp.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_register_short_password(client, db_session):
+    resp = await client.post("/api/register", json={"email": "new@example.com", "password": "12345"})
+    assert resp.status_code == 422

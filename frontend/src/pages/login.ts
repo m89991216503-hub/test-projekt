@@ -1,6 +1,6 @@
 import { login } from "../api";
 
-export function renderLogin(onSuccess: () => void): void {
+export function renderLogin(onSuccess: () => void, onRegister: () => void): void {
   const app = document.getElementById("app")!;
   app.innerHTML = `
     <div class="card">
@@ -13,11 +13,17 @@ export function renderLogin(onSuccess: () => void): void {
         <button type="submit">Войти</button>
         <p id="error" class="error"></p>
       </form>
+      <p style="text-align:center;margin-top:16px">Нет аккаунта? <a href="#" class="link" id="go-register">Зарегистрироваться</a></p>
     </div>
   `;
 
   const form = document.getElementById("login-form") as HTMLFormElement;
   const errorEl = document.getElementById("error")!;
+
+  document.getElementById("go-register")!.addEventListener("click", (e) => {
+    e.preventDefault();
+    onRegister();
+  });
 
   form.addEventListener("submit", async (e) => {
     e.preventDefault();

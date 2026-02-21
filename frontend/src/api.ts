@@ -42,6 +42,15 @@ export async function login(email: string, password: string): Promise<string> {
   return data.access_token;
 }
 
+export async function register(email: string, password: string): Promise<string> {
+  const data = await request<{ access_token: string }>("/register", {
+    method: "POST",
+    body: JSON.stringify({ email, password }),
+  });
+  setToken(data.access_token);
+  return data.access_token;
+}
+
 export async function getProfile(): Promise<{ email: string; created_at: string }> {
   return request("/me");
 }

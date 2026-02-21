@@ -1,0 +1,11 @@
+node_modules/
+__pycache__/
+*.pyc
+*.db
+.pytest_cache/
+dist/
+.vite/
+.claude/
+.playwright-mcp/
+*.png
+*.zip

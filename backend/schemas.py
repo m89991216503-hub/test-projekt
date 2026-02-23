@@ -30,3 +30,13 @@ class ChangePasswordRequest(BaseModel):
 
 class MessageResponse(BaseModel):
     message: str
+
+
+class EmailSendRequest(BaseModel):
+    to: EmailStr
+    subject: str
+    body: str
+
+
+class EmailSendResponse(BaseModel):
+    message: str

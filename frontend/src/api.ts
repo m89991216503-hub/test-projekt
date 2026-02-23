@@ -62,3 +62,11 @@ export async function changePassword(oldPassword: string, newPassword: string): 
   });
   return data.message;
 }
+
+export async function sendEmail(to: string, subject: string, body: string): Promise<string> {
+  const data = await request<{ message: string }>("/email/send", {
+    method: "POST",
+    body: JSON.stringify({ to, subject, body }),
+  });
+  return data.message;
+}

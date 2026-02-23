@@ -1,4 +1,4 @@
-import { getProfile, changePassword, removeToken } from "../api";
+import { getProfile, changePassword, removeToken, sendEmail } from "../api";
 
 export async function renderProfile(onLogout: () => void): Promise<void> {
   const app = document.getElementById("app")!;
@@ -26,6 +26,19 @@ export async function renderProfile(onLogout: () => void): Promise<void> {
           <button type="submit">Сменить пароль</button>
           <p id="pwd-error" class="error"></p>
           <p id="pwd-success" class="success"></p>
+        </form>
+        <hr />
+        <h2>Отправить письмо</h2>
+        <form id="email-form">
+          <label for="email-to">Кому (e-mail)</label>
+          <input type="email" id="email-to" placeholder="recipient@example.com" required />
+          <label for="email-subject">Тема</label>
+          <input type="text" id="email-subject" placeholder="Тема письма" maxlength="255" required />
+          <label for="email-body">Текст письма</label>
+          <textarea id="email-body" rows="6" placeholder="Введите текст письма..." required></textarea>
+          <button type="submit" id="email-submit-btn">Отправить</button>
+          <p id="email-error" class="error"></p>
+          <p id="email-success" class="success"></p>
         </form>
         <hr />
         <button id="logout-btn" class="btn-secondary">Выйти</button>
@@ -65,6 +78,35 @@ export async function renderProfile(onLogout: () => void): Promise<void> {
         form.reset();
       } catch (err: any) {
         errorEl.textContent = err.message || "Ошибка смены пароля";
+      }
+    });
+
+    const emailForm = document.getElementById("email-form") as HTMLFormElement;
+    const emailErrorEl = document.getElementById("email-error")!;
+    const emailSuccessEl = document.getElementById("email-success")!;
+    const emailSubmitBtn = document.getElementById("email-submit-btn") as HTMLButtonElement;
+
+    emailForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      emailErrorEl.textContent = "";
+      emailSuccessEl.textContent = "";
+
+      const to = (document.getElementById("email-to") as HTMLInputElement).value.trim();
+      const subject = (document.getElementById("email-subject") as HTMLInputElement).value.trim();
+      const body = (document.getElementById("email-body") as HTMLTextAreaElement).value.trim();
+
+      emailSubmitBtn.disabled = true;
+      emailSubmitBtn.textContent = "Отправка...";
+
+      try {
+        const msg = await sendEmail(to, subject, body);
+        emailSuccessEl.textContent = msg;
+        emailForm.reset();
+      } catch (err: any) {
+        emailErrorEl.textContent = err.message || "Ошибка отправки письма";
+      } finally {
+        emailSubmitBtn.disabled = false;
+        emailSubmitBtn.textContent = "Отправить";
       }
     });
   } catch {

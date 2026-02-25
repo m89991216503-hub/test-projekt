@@ -13,6 +13,18 @@ import config
 from models import EmailMessage, User
 
 
+def _safe_charset(charset: str | None) -> str:
+    """Map non-standard or unknown charset names to something Python can handle."""
+    if not charset:
+        return "utf-8"
+    try:
+        import codecs
+        codecs.lookup(charset)
+        return charset
+    except LookupError:
+        return "latin-1"
+
+
 def _decode_str(value: str) -> str:
     if not value:
         return ""
@@ -20,7 +32,7 @@ def _decode_str(value: str) -> str:
     result = []
     for part, charset in parts:
         if isinstance(part, bytes):
-            result.append(part.decode(charset or "utf-8", errors="replace"))
+            result.append(part.decode(_safe_charset(charset), errors="replace"))
         else:
             result.append(part)
     return "".join(result)
@@ -31,17 +43,17 @@ def _extract_body(msg) -> str:
         for part in msg.walk():
             if part.get_content_type() == "text/plain":
                 payload = part.get_payload(decode=True)
-                charset = part.get_content_charset() or "utf-8"
+                charset = _safe_charset(part.get_content_charset())
                 return payload.decode(charset, errors="replace")
         for part in msg.walk():
             if part.get_content_type() == "text/html":
                 payload = part.get_payload(decode=True)
-                charset = part.get_content_charset() or "utf-8"
+                charset = _safe_charset(part.get_content_charset())
                 return payload.decode(charset, errors="replace")
     else:
         payload = msg.get_payload(decode=True)
         if payload:
-            charset = msg.get_content_charset() or "utf-8"
+            charset = _safe_charset(msg.get_content_charset())
             return payload.decode(charset, errors="replace")
     return ""
 
@@ -61,13 +73,17 @@ def _fetch_from_imap(existing_uids: set) -> list[dict]:
         _, data = mail.uid("search", None, "ALL")
         all_uids = data[0].split() if data[0] else []
         new_uids = [uid for uid in all_uids if int(uid) not in existing_uids]
+        # Fetch only the latest 50 new messages to avoid long delays
+        new_uids = new_uids[-50:]
 
         for uid_bytes in new_uids:
             uid = int(uid_bytes)
             _, msg_data = mail.uid("fetch", uid_bytes, "(RFC822)")
-            if not msg_data or msg_data[0] is None:
+            if not msg_data or not isinstance(msg_data[0], tuple):
                 continue
             raw = msg_data[0][1]
+            if not isinstance(raw, bytes):
+                continue
             msg = email_lib.message_from_bytes(raw)
 
             from_addr = _decode_str(msg.get("From", ""))

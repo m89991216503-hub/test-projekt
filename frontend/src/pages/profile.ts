@@ -7,6 +7,7 @@ import {
   getAdminTemplate,
   saveAdminTemplate,
 } from "../api";
+import { renderMailbox } from "./mailbox";
 
 export async function renderProfile(onLogout: () => void): Promise<void> {
   const app = document.getElementById("app")!;
@@ -67,6 +68,9 @@ async function renderAdminProfile(
         <p id="tmpl-success" class="success"></p>
       </form>
       <hr />
+      <h2>Почтовый ящик</h2>
+      <div id="mailbox-container"></div>
+      <hr />
       <button id="logout-btn" class="btn-secondary">Выйти</button>
     </div>
   `;
@@ -77,6 +81,7 @@ async function renderAdminProfile(
   });
 
   attachPasswordForm();
+  await renderMailbox(document.getElementById("mailbox-container")!);
 
   const templateForm = document.getElementById("template-form") as HTMLFormElement;
   const tmplError = document.getElementById("tmpl-error")!;
@@ -144,6 +149,9 @@ async function renderUserProfile(
         <p id="email-success" class="success"></p>
       </form>
       <hr />
+      <h2>Почтовый ящик</h2>
+      <div id="mailbox-container"></div>
+      <hr />
       <button id="logout-btn" class="btn-secondary">Выйти</button>
     </div>
   `;
@@ -154,6 +162,7 @@ async function renderUserProfile(
   });
 
   attachPasswordForm();
+  await renderMailbox(document.getElementById("mailbox-container")!);
 
   const emailForm = document.getElementById("email-form") as HTMLFormElement;
   const emailErrorEl = document.getElementById("email-error")!;

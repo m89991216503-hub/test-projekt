@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, ConfigDict
 
 
 class LoginRequest(BaseModel):
@@ -51,3 +51,23 @@ class TemplateResponse(BaseModel):
 class TemplateUpdateRequest(BaseModel):
     subject: str
     body: str
+
+
+class EmailMessageItem(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    direction: str
+    from_addr: str
+    to_addr: str
+    subject: str
+    created_at: datetime
+    is_read: bool
+
+
+class EmailMessageDetail(EmailMessageItem):
+    body: str
+
+
+class FetchResult(BaseModel):
+    fetched: int

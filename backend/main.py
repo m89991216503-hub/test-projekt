@@ -8,6 +8,7 @@ from routes.auth_routes import router as auth_router
 from routes.user_routes import router as user_router
 from routes.email_routes import router as email_router
 from routes.admin_routes import router as admin_router
+from routes.mailbox_routes import router as mailbox_router
 
 
 @asynccontextmanager
@@ -32,3 +33,4 @@ app.include_router(auth_router)
 app.include_router(user_router)
 app.include_router(email_router)
 app.include_router(admin_router)
+app.include_router(mailbox_router)

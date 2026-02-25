@@ -28,7 +28,8 @@ async def get_email_template(
 async def send_email_endpoint(
     payload: EmailSendRequest,
     current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ):
     from_addr = config.SMTP_USER or current_user.email
-    send_email(from_addr, payload.to, payload.subject, payload.body)
+    await send_email(from_addr, payload.to, payload.subject, payload.body, current_user.id, db)
     return EmailSendResponse(message="Письмо успешно отправлено")

@@ -1,17 +1,18 @@
+import asyncio
 import smtplib
+from datetime import datetime, timezone
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
 from fastapi import HTTPException
+from sqlalchemy.ext.asyncio import AsyncSession
 
 import config
+from models import EmailMessage
 
 
-def send_email(from_addr: str, to_addr: str, subject: str, body: str) -> None:
-    """Send an email via SMTP using settings from config."""
-    if not config.SMTP_USER or not config.SMTP_PASSWORD:
-        raise HTTPException(status_code=503, detail="SMTP not configured")
-
+def _smtp_send(from_addr: str, to_addr: str, subject: str, body: str) -> None:
+    """Synchronous SMTP send — intended to run in a thread."""
     msg = MIMEMultipart()
     msg["From"] = from_addr
     msg["To"] = to_addr
@@ -32,3 +33,30 @@ def send_email(from_addr: str, to_addr: str, subject: str, body: str) -> None:
         raise HTTPException(status_code=502, detail="Mail authentication failed")
     except (smtplib.SMTPException, OSError):
         raise HTTPException(status_code=502, detail="Mail server unavailable")
+
+
+async def send_email(
+    from_addr: str,
+    to_addr: str,
+    subject: str,
+    body: str,
+    user_id: int,
+    db: AsyncSession,
+) -> None:
+    """Send email via SMTP and save a copy to the database."""
+    if not config.SMTP_USER or not config.SMTP_PASSWORD:
+        raise HTTPException(status_code=503, detail="SMTP not configured")
+
+    await asyncio.to_thread(_smtp_send, from_addr, to_addr, subject, body)
+
+    db.add(EmailMessage(
+        user_id=user_id,
+        direction="sent",
+        from_addr=from_addr,
+        to_addr=to_addr,
+        subject=subject,
+        body=body,
+        created_at=datetime.now(timezone.utc).replace(tzinfo=None),
+        is_read=True,
+    ))
+    await db.commit()

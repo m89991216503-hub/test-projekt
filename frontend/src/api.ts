@@ -86,3 +86,33 @@ export async function saveAdminTemplate(subject: string, body: string): Promise<
   });
   return data.message;
 }
+
+export interface MailItem {
+  id: number;
+  direction: string;
+  from_addr: string;
+  to_addr: string;
+  subject: string;
+  created_at: string;
+  is_read: boolean;
+}
+
+export interface MailDetail extends MailItem {
+  body: string;
+}
+
+export async function getInbox(): Promise<MailItem[]> {
+  return request("/mailbox/inbox");
+}
+
+export async function getSent(): Promise<MailItem[]> {
+  return request("/mailbox/sent");
+}
+
+export async function getMailMessage(id: number): Promise<MailDetail> {
+  return request(`/mailbox/${id}`);
+}
+
+export async function fetchInbox(): Promise<{ fetched: number }> {
+  return request("/mailbox/fetch", { method: "POST" });
+}

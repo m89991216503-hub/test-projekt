@@ -33,7 +33,7 @@ async def test_change_password_success(client, auth_header):
     assert resp.json()["message"] == "Password changed successfully"
 
     # Verify login with new password works
-    resp = await client.post("/api/login", json={"email": "test@example.com", "password": "newpass456"})
+    resp = await client.post("/api/login", json={"login": "test@example.com", "password": "newpass456"})
     assert resp.status_code == 200
 
 

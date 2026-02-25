@@ -6,8 +6,8 @@ export function renderLogin(onSuccess: () => void, onRegister: () => void): void
     <div class="card">
       <h1>Вход</h1>
       <form id="login-form">
-        <label for="email">E-mail</label>
-        <input type="email" id="email" placeholder="you@example.com" required />
+        <label for="login-input">E-mail или логин</label>
+        <input type="text" id="login-input" placeholder="you@example.com или admin" required />
         <label for="password">Пароль</label>
         <input type="password" id="password" placeholder="Пароль" required />
         <button type="submit">Войти</button>
@@ -28,10 +28,10 @@ export function renderLogin(onSuccess: () => void, onRegister: () => void): void
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
     errorEl.textContent = "";
-    const email = (document.getElementById("email") as HTMLInputElement).value;
+    const loginValue = (document.getElementById("login-input") as HTMLInputElement).value;
     const password = (document.getElementById("password") as HTMLInputElement).value;
     try {
-      await login(email, password);
+      await login(loginValue, password);
       onSuccess();
     } catch (err: any) {
       errorEl.textContent = err.message || "Ошибка входа";

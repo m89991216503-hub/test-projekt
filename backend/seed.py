@@ -1,4 +1,4 @@
-"""Create a test user in the database."""
+"""Create default users in the database."""
 import asyncio
 from database import engine, Base, async_session
 from models import User
@@ -19,6 +19,20 @@ async def main():
             print("Created user: demo@example.com / demo123")
         else:
             print("User demo@example.com already exists")
+
+        result = await session.execute(select(User).where(User.username == "admin"))
+        if result.scalar_one_or_none() is None:
+            admin = User(
+                email="admin@localhost",
+                username="admin",
+                hashed_password=hash_password("admin"),
+                is_admin=True,
+            )
+            session.add(admin)
+            await session.commit()
+            print("Created admin: admin / admin")
+        else:
+            print("Admin user already exists")
 
     await engine.dispose()
 

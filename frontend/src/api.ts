@@ -33,10 +33,10 @@ async function request<T>(url: string, options: RequestInit = {}): Promise<T> {
   return resp.json();
 }
 
-export async function login(email: string, password: string): Promise<string> {
+export async function login(loginValue: string, password: string): Promise<string> {
   const data = await request<{ access_token: string }>("/login", {
     method: "POST",
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify({ login: loginValue, password }),
   });
   setToken(data.access_token);
   return data.access_token;
@@ -51,7 +51,7 @@ export async function register(email: string, password: string): Promise<string>
   return data.access_token;
 }
 
-export async function getProfile(): Promise<{ email: string; created_at: string }> {
+export async function getProfile(): Promise<{ email: string; created_at: string; is_admin: boolean }> {
   return request("/me");
 }
 
@@ -67,6 +67,22 @@ export async function sendEmail(to: string, subject: string, body: string): Prom
   const data = await request<{ message: string }>("/email/send", {
     method: "POST",
     body: JSON.stringify({ to, subject, body }),
+  });
+  return data.message;
+}
+
+export async function getEmailTemplate(): Promise<{ subject: string; body: string }> {
+  return request("/email/template");
+}
+
+export async function getAdminTemplate(): Promise<{ subject: string; body: string }> {
+  return request("/admin/template");
+}
+
+export async function saveAdminTemplate(subject: string, body: string): Promise<string> {
+  const data = await request<{ message: string }>("/admin/template", {
+    method: "PUT",
+    body: JSON.stringify({ subject, body }),
   });
   return data.message;
 }

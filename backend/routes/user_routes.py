@@ -11,7 +11,7 @@ router = APIRouter(prefix="/api", tags=["user"])
 
 @router.get("/me", response_model=UserProfile)
 async def get_profile(current_user: User = Depends(get_current_user)):
-    return UserProfile(email=current_user.email, created_at=current_user.created_at)
+    return UserProfile(email=current_user.email, created_at=current_user.created_at, is_admin=current_user.is_admin)
 
 
 @router.put("/me/password", response_model=MessageResponse)

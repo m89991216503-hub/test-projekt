@@ -7,6 +7,7 @@ from database import engine, Base
 from routes.auth_routes import router as auth_router
 from routes.user_routes import router as user_router
 from routes.email_routes import router as email_router
+from routes.admin_routes import router as admin_router
 
 
 @asynccontextmanager
@@ -30,3 +31,4 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(user_router)
 app.include_router(email_router)
+app.include_router(admin_router)

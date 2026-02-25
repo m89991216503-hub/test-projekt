@@ -4,7 +4,7 @@ from pydantic import BaseModel, EmailStr
 
 
 class LoginRequest(BaseModel):
-    email: EmailStr
+    login: str
     password: str
 
 
@@ -21,6 +21,7 @@ class TokenResponse(BaseModel):
 class UserProfile(BaseModel):
     email: str
     created_at: datetime
+    is_admin: bool
 
 
 class ChangePasswordRequest(BaseModel):
@@ -40,3 +41,13 @@ class EmailSendRequest(BaseModel):
 
 class EmailSendResponse(BaseModel):
     message: str
+
+
+class TemplateResponse(BaseModel):
+    subject: str
+    body: str
+
+
+class TemplateUpdateRequest(BaseModel):
+    subject: str
+    body: str

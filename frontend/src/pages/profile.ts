@@ -3,7 +3,7 @@ import {
   changePassword,
   removeToken,
   sendEmail,
-  getEmailTemplate,
+  getProcessedTemplate,
   getAdminTemplate,
   saveAdminTemplate,
 } from "../api";
@@ -63,6 +63,9 @@ async function renderAdminProfile(
         <input type="text" id="tmpl-subject" placeholder="Тема письма" maxlength="255" value="${escapeHtml(template.subject)}" />
         <label for="tmpl-body">Текст шаблона</label>
         <textarea id="tmpl-body" rows="6" placeholder="Текст письма...">${escapeHtml(template.body)}</textarea>
+        <label for="tmpl-ai-prompt">AI-промт (инструкция для нейросети DeepSeek)</label>
+        <textarea id="tmpl-ai-prompt" rows="4" placeholder="Например: Перепиши письмо в официальном деловом стиле, исправь ошибки, сделай текст более убедительным.">${escapeHtml(template.ai_prompt)}</textarea>
+        <p class="hint">Если промт задан, шаблон будет обработан нейросетью перед подстановкой в форму пользователя.</p>
         <button type="submit" id="tmpl-submit-btn">Сохранить шаблон</button>
         <p id="tmpl-error" class="error"></p>
         <p id="tmpl-success" class="success"></p>
@@ -94,10 +97,11 @@ async function renderAdminProfile(
     tmplSuccess.textContent = "";
     const subject = (document.getElementById("tmpl-subject") as HTMLInputElement).value;
     const body = (document.getElementById("tmpl-body") as HTMLTextAreaElement).value;
+    const aiPrompt = (document.getElementById("tmpl-ai-prompt") as HTMLTextAreaElement).value;
     tmplSubmitBtn.disabled = true;
     tmplSubmitBtn.textContent = "Сохранение...";
     try {
-      const msg = await saveAdminTemplate(subject, body);
+      const msg = await saveAdminTemplate(subject, body, aiPrompt);
       tmplSuccess.textContent = msg;
     } catch (err: any) {
       tmplError.textContent = err.message || "Ошибка сохранения шаблона";
@@ -114,8 +118,6 @@ async function renderUserProfile(
   createdDate: string,
   onLogout: () => void
 ): Promise<void> {
-  const template = await getEmailTemplate().catch(() => ({ subject: "", body: "" }));
-
   app.innerHTML = `
     <div class="card">
       <h1>Профиль</h1>
@@ -141,10 +143,10 @@ async function renderUserProfile(
         <label for="email-to">Кому (e-mail)</label>
         <input type="email" id="email-to" placeholder="recipient@example.com" required />
         <label for="email-subject">Тема</label>
-        <input type="text" id="email-subject" placeholder="Тема письма" maxlength="255" required value="${escapeHtml(template.subject)}" />
+        <input type="text" id="email-subject" placeholder="AI обрабатывает шаблон..." maxlength="255" required value="" />
         <label for="email-body">Текст письма</label>
-        <textarea id="email-body" rows="6" placeholder="Введите текст письма..." required>${escapeHtml(template.body)}</textarea>
-        <button type="submit" id="email-submit-btn">Отправить</button>
+        <textarea id="email-body" rows="6" placeholder="AI обрабатывает шаблон..." required></textarea>
+        <button type="submit" id="email-submit-btn" disabled>Отправить</button>
         <p id="email-error" class="error"></p>
         <p id="email-success" class="success"></p>
       </form>
@@ -163,6 +165,21 @@ async function renderUserProfile(
 
   attachPasswordForm();
   await renderMailbox(document.getElementById("mailbox-container")!);
+
+  // Load AI-processed template asynchronously
+  getProcessedTemplate()
+    .then((t) => {
+      const subjectEl = document.getElementById("email-subject") as HTMLInputElement | null;
+      const bodyEl = document.getElementById("email-body") as HTMLTextAreaElement | null;
+      const submitBtn = document.getElementById("email-submit-btn") as HTMLButtonElement | null;
+      if (subjectEl) subjectEl.value = t.subject;
+      if (bodyEl) bodyEl.value = t.body;
+      if (submitBtn) submitBtn.disabled = false;
+    })
+    .catch(() => {
+      const submitBtn = document.getElementById("email-submit-btn") as HTMLButtonElement | null;
+      if (submitBtn) submitBtn.disabled = false;
+    });
 
   const emailForm = document.getElementById("email-form") as HTMLFormElement;
   const emailErrorEl = document.getElementById("email-error")!;

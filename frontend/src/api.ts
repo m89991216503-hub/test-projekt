@@ -75,14 +75,18 @@ export async function getEmailTemplate(): Promise<{ subject: string; body: strin
   return request("/email/template");
 }
 
-export async function getAdminTemplate(): Promise<{ subject: string; body: string }> {
+export async function getProcessedTemplate(): Promise<{ subject: string; body: string }> {
+  return request("/email/template/processed");
+}
+
+export async function getAdminTemplate(): Promise<{ subject: string; body: string; ai_prompt: string }> {
   return request("/admin/template");
 }
 
-export async function saveAdminTemplate(subject: string, body: string): Promise<string> {
+export async function saveAdminTemplate(subject: string, body: string, ai_prompt: string): Promise<string> {
   const data = await request<{ message: string }>("/admin/template", {
     method: "PUT",
-    body: JSON.stringify({ subject, body }),
+    body: JSON.stringify({ subject, body, ai_prompt }),
   });
   return data.message;
 }

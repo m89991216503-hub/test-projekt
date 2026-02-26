@@ -18,8 +18,8 @@ async def get_template(
     result = await db.execute(select(EmailTemplate).limit(1))
     template = result.scalar_one_or_none()
     if template is None:
-        return TemplateResponse(subject="", body="")
-    return TemplateResponse(subject=template.subject, body=template.body)
+        return TemplateResponse(subject="", body="", ai_prompt="")
+    return TemplateResponse(subject=template.subject, body=template.body, ai_prompt=template.ai_prompt or "")
 
 
 @router.put("/template", response_model=MessageResponse)
@@ -31,10 +31,11 @@ async def update_template(
     result = await db.execute(select(EmailTemplate).limit(1))
     template = result.scalar_one_or_none()
     if template is None:
-        template = EmailTemplate(subject=body.subject, body=body.body)
+        template = EmailTemplate(subject=body.subject, body=body.body, ai_prompt=body.ai_prompt or None)
         db.add(template)
     else:
         template.subject = body.subject
         template.body = body.body
+        template.ai_prompt = body.ai_prompt or None
     await db.commit()
     return MessageResponse(message="Шаблон сохранён")

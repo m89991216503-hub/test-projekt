@@ -46,11 +46,13 @@ class EmailSendResponse(BaseModel):
 class TemplateResponse(BaseModel):
     subject: str
     body: str
+    ai_prompt: str = ""
 
 
 class TemplateUpdateRequest(BaseModel):
     subject: str
     body: str
+    ai_prompt: str = ""
 
 
 class EmailMessageItem(BaseModel):

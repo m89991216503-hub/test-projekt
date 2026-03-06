@@ -24,9 +24,14 @@ MAIL_IMAP_HOST    = os.getenv("MAIL_IMAP_HOST", "")
 MAIL_IMAP_PORT    = int(os.getenv("MAIL_IMAP_PORT", "993"))
 MAIL_IMAP_USE_SSL = os.getenv("MAIL_IMAP_USE_SSL", "true").lower() == "true"
 
-# Dovecot passwd-file path (used when Dovecot is configured with passwd-file backend)
+# Dovecot passwd-file path (for IMAP authentication)
 # Example: /etc/dovecot/dovecot.passwd
 DOVECOT_PASSWD_FILE = os.getenv("DOVECOT_PASSWD_FILE", "")
+
+# Exim4/Fastpanel passwd-file path (for local mail delivery routing)
+# Set this alongside DOVECOT_PASSWD_FILE when using a Fastpanel-managed server.
+# Example: /etc/exim4/passwd
+EXIM_PASSWD_FILE = os.getenv("EXIM_PASSWD_FILE", "")
 
 # MySQL database used by Postfix/Dovecot virtual users (used as fallback if no passwd-file)
 # Format: mysql+aiomysql://user:password@host/dbname

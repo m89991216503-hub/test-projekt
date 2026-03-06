@@ -4,6 +4,7 @@ import email as email_lib
 from datetime import datetime, timezone
 from email.header import decode_header
 from email.utils import parsedate_to_datetime
+from typing import Optional
 
 from fastapi import HTTPException
 from sqlalchemy import select
@@ -13,7 +14,7 @@ import config
 from models import EmailMessage, User
 
 
-def _safe_charset(charset: str | None) -> str:
+def _safe_charset(charset: Optional[str]) -> str:
     """Map non-standard or unknown charset names to something Python can handle."""
     if not charset:
         return "utf-8"
@@ -58,7 +59,7 @@ def _extract_body(msg) -> str:
     return ""
 
 
-def _fetch_from_imap(existing_uids: set) -> list[dict]:
+def _fetch_from_imap(existing_uids: set) -> list:
     """Synchronous IMAP fetch — intended to run in a thread."""
     messages = []
     try:
@@ -117,7 +118,7 @@ def _fetch_from_imap(existing_uids: set) -> list[dict]:
     return messages
 
 
-async def fetch_inbox(db: AsyncSession, users: list) -> int:
+async def fetch_inbox(db: AsyncSession, users: list, fallback_user_id: Optional[int] = None) -> int:
     if not config.IMAP_USER or not config.IMAP_PASSWORD:
         raise HTTPException(status_code=503, detail="IMAP not configured")
 
@@ -127,9 +128,10 @@ async def fetch_inbox(db: AsyncSession, users: list) -> int:
     existing_uids = {row[0] for row in result.all()}
 
     user_map = {u.email.lower(): u.id for u in users}
-    admin_id = next((u.id for u in users if u.is_admin), None)
-    if admin_id is None and users:
-        admin_id = users[0].id
+    if fallback_user_id is None:
+        fallback_user_id = next((u.id for u in users if u.is_admin), None)
+    if fallback_user_id is None and users:
+        fallback_user_id = users[0].id
 
     new_messages = await asyncio.to_thread(_fetch_from_imap, existing_uids)
 
@@ -138,7 +140,7 @@ async def fetch_inbox(db: AsyncSession, users: list) -> int:
         to_lower = m["to_addr"].lower()
         user_id = next(
             (uid for email, uid in user_map.items() if email in to_lower),
-            admin_id,
+            fallback_user_id,
         )
         if user_id is None:
             continue

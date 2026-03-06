@@ -17,8 +17,10 @@ def _smtp_send(from_addr: str, to_addr: str, subject: str, body: str) -> None:
     msg["From"] = config.SMTP_USER
     msg["To"] = to_addr
     msg["Subject"] = subject
-    # If sending from a different address, add Reply-To so replies go there
-    if from_addr != config.SMTP_USER:
+    # Route replies to the IMAP mailbox (test@school-pro100.ru)
+    if config.IMAP_USER and config.IMAP_USER != config.SMTP_USER:
+        msg["Reply-To"] = config.IMAP_USER
+    elif from_addr != config.SMTP_USER:
         msg["Reply-To"] = from_addr
     msg.attach(MIMEText(body, "plain", "utf-8"))
 

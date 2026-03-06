@@ -24,7 +24,11 @@ MAIL_IMAP_HOST    = os.getenv("MAIL_IMAP_HOST", "")
 MAIL_IMAP_PORT    = int(os.getenv("MAIL_IMAP_PORT", "993"))
 MAIL_IMAP_USE_SSL = os.getenv("MAIL_IMAP_USE_SSL", "true").lower() == "true"
 
-# MySQL database used by Postfix/Dovecot virtual users (for mailbox creation)
+# Dovecot passwd-file path (used when Dovecot is configured with passwd-file backend)
+# Example: /etc/dovecot/dovecot.passwd
+DOVECOT_PASSWD_FILE = os.getenv("DOVECOT_PASSWD_FILE", "")
+
+# MySQL database used by Postfix/Dovecot virtual users (used as fallback if no passwd-file)
 # Format: mysql+aiomysql://user:password@host/dbname
 MAIL_DB_URL = os.getenv("MAIL_DB_URL", "")
 

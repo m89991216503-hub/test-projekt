@@ -34,7 +34,7 @@ async function renderAdminProfile(
   createdDate: string,
   onLogout: () => void
 ): Promise<void> {
-  const template = await getAdminTemplate().catch(() => ({ subject: "", body: "" }));
+  const template = await getAdminTemplate().catch(() => ({ subject: "", body: "", ai_prompt: "" }));
 
   app.innerHTML = `
     <div class="card">

@@ -1,4 +1,4 @@
-import { getInbox, getSent, getMailMessage, fetchInbox, sendEmail, MailItem } from "../api";
+import { getInbox, getSent, getMailMessage, fetchInbox, sendEmail, MailItem, MailDetail } from "../api";
 
 type Tab = "inbox" | "sent" | "compose";
 
@@ -105,8 +105,11 @@ function attachRefresh(container: HTMLElement): void {
       let inbox: MailItem[] = [];
       let sent: MailItem[] = [];
       [inbox, sent] = await Promise.all([getInbox(), getSent()]);
-      info.textContent = res.fetched > 0 ? `Получено новых: ${res.fetched}` : "Нет новых писем";
+      const message = res.fetched > 0 ? `Получено новых: ${res.fetched}` : "Нет новых писем";
       renderUI(container, inbox, sent, "inbox");
+      // Set message on the newly rendered info element (renderUI replaces the DOM)
+      const newInfo = container.querySelector<HTMLElement>("#mb-refresh-info");
+      if (newInfo) newInfo.textContent = message;
     } catch (err: any) {
       info.textContent = err.message || "Ошибка обновления";
       btn.disabled = false;
@@ -117,7 +120,8 @@ function attachRefresh(container: HTMLElement): void {
 
 function attachExpansion(container: HTMLElement): void {
   container.querySelectorAll<HTMLElement>(".mb-row").forEach((row) => {
-    row.addEventListener("click", async () => {
+    row.addEventListener("click", async (e) => {
+      if ((e.target as HTMLElement).classList.contains("reply-btn")) return;
       const id = Number(row.dataset.id);
       const detail = container.querySelector<HTMLElement>(`#mb-d-${id}`);
       if (!detail) return;
@@ -135,6 +139,7 @@ function attachExpansion(container: HTMLElement): void {
       try {
         const msg = await getMailMessage(id);
         const date = new Date(msg.created_at).toLocaleString("ru-RU");
+        const isRecv = msg.direction === "recv";
         detail.innerHTML = `
           <p class="mb-meta">
             <strong>От:</strong> ${esc(msg.from_addr)}<br>
@@ -142,12 +147,44 @@ function attachExpansion(container: HTMLElement): void {
             <strong>Дата:</strong> ${date}<br>
             <strong>Тема:</strong> ${esc(msg.subject)}
           </p>
-          <pre class="mb-body">${esc(msg.body)}</pre>`;
+          <pre class="mb-body">${esc(msg.body)}</pre>
+          ${isRecv ? `<button class="reply-btn btn-sm" data-id="${msg.id}">Ответить</button>` : ""}`;
+        if (isRecv) {
+          detail.querySelector<HTMLButtonElement>(".reply-btn")!
+            .addEventListener("click", () => activateReply(msg, container));
+        }
       } catch (err: any) {
         detail.innerHTML = `<p class="error">${err.message || "Ошибка загрузки"}</p>`;
       }
     });
   });
+}
+
+function activateReply(msg: MailDetail, container: HTMLElement): void {
+  // Switch to compose tab
+  container.querySelectorAll<HTMLElement>(".mb-tab").forEach((b) => b.classList.remove("mb-tab--active"));
+  container.querySelector<HTMLButtonElement>('[data-tab="compose"]')?.classList.add("mb-tab--active");
+  container.querySelectorAll<HTMLElement>("#mb-inbox, #mb-sent, #mb-compose").forEach((p) => p.classList.add("mb-hidden"));
+  container.querySelector<HTMLElement>("#mb-compose")?.classList.remove("mb-hidden");
+
+  // Pre-fill fields
+  const toInput = container.querySelector<HTMLInputElement>("#mb-to")!;
+  const subjectInput = container.querySelector<HTMLInputElement>("#mb-subject")!;
+  const bodyTextarea = container.querySelector<HTMLTextAreaElement>("#mb-body")!;
+
+  // Extract bare email address from RFC 5322 format "Name <email>" or plain "email"
+  const angleMatch = msg.from_addr.match(/<([^>]+)>/);
+  toInput.value = angleMatch ? angleMatch[1] : msg.from_addr.trim();
+
+  const rePrefix = "Re: ";
+  subjectInput.value = msg.subject.startsWith(rePrefix) ? msg.subject : rePrefix + msg.subject;
+
+  const quoted = msg.body.split("\n").map((line) => "> " + line).join("\n");
+  bodyTextarea.value = `\n\n--- Оригинальное письмо ---\n${quoted}`;
+
+  bodyTextarea.focus();
+  bodyTextarea.setSelectionRange(0, 0);
+  bodyTextarea.scrollTop = 0;
 }
 
 function attachCompose(container: HTMLElement, sentCache: MailItem[]): void {

@@ -21,6 +21,20 @@ _DOVECOT_ENTRY_FMT = "{email}:{hash}:{uid}:{gid}::{home}::\n"
 _EXIM_ENTRY_FMT    = "{email}:{hash}:{uid}:{gid}:{home}::\n"
 
 
+def _upsert_passwd_line(filepath: str, email: str, new_line: str) -> None:
+    """Replace an existing line for email in passwd file, or append if not found."""
+    if os.path.exists(filepath):
+        with open(filepath, "r") as f:
+            lines = f.readlines()
+        lines = [l for l in lines if not l.startswith(email + ":")]
+        lines.append(new_line)
+        with open(filepath, "w") as f:
+            f.writelines(lines)
+    else:
+        with open(filepath, "w") as f:
+            f.write(new_line)
+
+
 def _make_dovecot_hash(password: str) -> str:
     return "{" + _DOVECOT_SCHEME + "}" + sha512_crypt.hash(password)
 
@@ -55,27 +69,18 @@ async def _create_mailbox_passwdfile(username: str) -> Optional[str]:
     exim_passwd_file = config.EXIM_PASSWD_FILE  # may be empty string
 
     try:
-        # Skip if user already exists in Dovecot passwd-file
-        if os.path.exists(dovecot_passwd_file):
-            with open(dovecot_passwd_file, "r") as f:
-                for line in f:
-                    if line.startswith(email + ":"):
-                        return None
-
-        # Write Dovecot auth entry:  email:hash:uid:gid::home::
+        # Write Dovecot auth entry, replacing any existing line for this email
         dovecot_entry = _DOVECOT_ENTRY_FMT.format(
             email=email, hash=dovecot_hash, uid=_MAIL_UID, gid=_MAIL_GID, home=mail_home
         )
-        with open(dovecot_passwd_file, "a") as f:
-            f.write(dovecot_entry)
+        _upsert_passwd_line(dovecot_passwd_file, email, dovecot_entry)
 
         # Write Exim4 routing entry (Fastpanel): email:hash:uid:gid:home::
         if exim_passwd_file and os.path.exists(exim_passwd_file):
             exim_entry = _EXIM_ENTRY_FMT.format(
                 email=email, hash=dovecot_hash, uid=_MAIL_UID, gid=_MAIL_GID, home=mail_home
             )
-            with open(exim_passwd_file, "a") as f:
-                f.write(exim_entry)
+            _upsert_passwd_line(exim_passwd_file, email, exim_entry)
 
         # Create mailbox directory
         os.makedirs(mail_home, mode=0o770, exist_ok=True)

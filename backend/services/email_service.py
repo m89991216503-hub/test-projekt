@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import asyncio
 import smtplib
 from datetime import datetime, timezone
@@ -8,31 +10,27 @@ from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import config
-from models import EmailMessage
+from models import EmailMessage, User
+from utils.crypto import decrypt_password
 
 
-def _smtp_send(from_addr: str, to_addr: str, subject: str, body: str) -> None:
-    """Synchronous SMTP send — intended to run in a thread."""
+def _smtp_send(smtp_user: str, smtp_password: str, to_addr: str, subject: str, body: str) -> None:
+    """Synchronous SMTP send using per-user credentials — runs in a thread."""
     msg = MIMEMultipart()
-    msg["From"] = config.SMTP_USER
+    msg["From"] = smtp_user
     msg["To"] = to_addr
     msg["Subject"] = subject
-    # Route replies to the IMAP mailbox (test@school-pro100.ru)
-    if config.IMAP_USER and config.IMAP_USER != config.SMTP_USER:
-        msg["Reply-To"] = config.IMAP_USER
-    elif from_addr != config.SMTP_USER:
-        msg["Reply-To"] = from_addr
     msg.attach(MIMEText(body, "plain", "utf-8"))
 
     try:
-        if config.SMTP_USE_TLS:
-            server = smtplib.SMTP(config.SMTP_HOST, config.SMTP_PORT, timeout=10)
+        if config.MAIL_SMTP_USE_TLS:
+            server = smtplib.SMTP(config.MAIL_SMTP_HOST, config.MAIL_SMTP_PORT, timeout=10)
             server.starttls()
         else:
-            server = smtplib.SMTP_SSL(config.SMTP_HOST, config.SMTP_PORT, timeout=10)
+            server = smtplib.SMTP_SSL(config.MAIL_SMTP_HOST, config.MAIL_SMTP_PORT, timeout=10)
 
-        server.login(config.SMTP_USER, config.SMTP_PASSWORD)
-        server.sendmail(from_addr, to_addr, msg.as_string())
+        server.login(smtp_user, smtp_password)
+        server.sendmail(smtp_user, to_addr, msg.as_string())
         server.quit()
     except smtplib.SMTPAuthenticationError:
         raise HTTPException(status_code=502, detail="Mail authentication failed")
@@ -41,23 +39,26 @@ def _smtp_send(from_addr: str, to_addr: str, subject: str, body: str) -> None:
 
 
 async def send_email(
-    from_addr: str,
+    user: User,
     to_addr: str,
     subject: str,
     body: str,
-    user_id: int,
     db: AsyncSession,
 ) -> None:
-    """Send email via SMTP and save a copy to the database."""
-    if not config.SMTP_USER or not config.SMTP_PASSWORD:
+    """Send email via the user's personal SMTP account and save a copy to the database."""
+    if not config.MAIL_SMTP_HOST:
         raise HTTPException(status_code=503, detail="SMTP not configured")
 
-    await asyncio.to_thread(_smtp_send, from_addr, to_addr, subject, body)
+    if not user.mail_password:
+        raise HTTPException(status_code=503, detail="Почтовый ящик пользователя не создан")
+
+    smtp_password = decrypt_password(user.mail_password)
+    await asyncio.to_thread(_smtp_send, user.mail_address, smtp_password, to_addr, subject, body)
 
     db.add(EmailMessage(
-        user_id=user_id,
+        user_id=user.id,
         direction="sent",
-        from_addr=from_addr,
+        from_addr=user.mail_address,
         to_addr=to_addr,
         subject=subject,
         body=body,

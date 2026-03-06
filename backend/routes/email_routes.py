@@ -8,7 +8,6 @@ from models import User, EmailTemplate
 from schemas import EmailSendRequest, EmailSendResponse, TemplateResponse
 from services.email_service import send_email
 from services.ai_service import process_template
-import config
 
 router = APIRouter(prefix="/api")
 
@@ -48,6 +47,5 @@ async def send_email_endpoint(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    from_addr = config.SMTP_USER or current_user.email
-    await send_email(from_addr, payload.to, payload.subject, payload.body, current_user.id, db)
+    await send_email(current_user, payload.to, payload.subject, payload.body, db)
     return EmailSendResponse(message="Письмо успешно отправлено")

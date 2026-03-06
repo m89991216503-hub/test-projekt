@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import asyncio
 import imaplib
 import email as email_lib
@@ -8,14 +10,15 @@ from typing import Optional
 
 from fastapi import HTTPException
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import config
 from models import EmailMessage, User
+from utils.crypto import decrypt_password
 
 
 def _safe_charset(charset: Optional[str]) -> str:
-    """Map non-standard or unknown charset names to something Python can handle."""
     if not charset:
         return "utf-8"
     try:
@@ -59,22 +62,21 @@ def _extract_body(msg) -> str:
     return ""
 
 
-def _fetch_from_imap(existing_uids: set) -> list:
-    """Synchronous IMAP fetch — intended to run in a thread."""
+def _fetch_from_imap(imap_user: str, imap_password: str, existing_uids: set) -> list:
+    """Synchronous IMAP fetch for a single user's mailbox — runs in a thread."""
     messages = []
     try:
-        if config.IMAP_USE_SSL:
-            mail = imaplib.IMAP4_SSL(config.IMAP_HOST, config.IMAP_PORT)
+        if config.MAIL_IMAP_USE_SSL:
+            mail = imaplib.IMAP4_SSL(config.MAIL_IMAP_HOST, config.MAIL_IMAP_PORT)
         else:
-            mail = imaplib.IMAP4(config.IMAP_HOST, config.IMAP_PORT)
+            mail = imaplib.IMAP4(config.MAIL_IMAP_HOST, config.MAIL_IMAP_PORT)
 
-        mail.login(config.IMAP_USER, config.IMAP_PASSWORD)
+        mail.login(imap_user, imap_password)
         mail.select("INBOX")
 
         _, data = mail.uid("search", None, "ALL")
         all_uids = data[0].split() if data[0] else []
         new_uids = [uid for uid in all_uids if int(uid) not in existing_uids]
-        # Fetch only the latest 50 new messages to avoid long delays
         new_uids = new_uids[-50:]
 
         for uid_bytes in new_uids:
@@ -88,9 +90,9 @@ def _fetch_from_imap(existing_uids: set) -> list:
             msg = email_lib.message_from_bytes(raw)
 
             from_addr = _decode_str(msg.get("From", ""))
-            to_addr = _decode_str(msg.get("To", ""))
-            subject = _decode_str(msg.get("Subject", "(без темы)")) or "(без темы)"
-            date_str = msg.get("Date", "")
+            to_addr   = _decode_str(msg.get("To", ""))
+            subject   = _decode_str(msg.get("Subject", "(без темы)")) or "(без темы)"
+            date_str  = msg.get("Date", "")
 
             try:
                 created_at = parsedate_to_datetime(date_str)
@@ -118,45 +120,51 @@ def _fetch_from_imap(existing_uids: set) -> list:
     return messages
 
 
-async def fetch_inbox(db: AsyncSession, users: list, fallback_user_id: Optional[int] = None) -> int:
-    if not config.IMAP_USER or not config.IMAP_PASSWORD:
+async def fetch_inbox(db: AsyncSession, users: list) -> int:
+    """Fetch new messages for each user from their personal IMAP mailbox."""
+    if not config.MAIL_IMAP_HOST:
         raise HTTPException(status_code=503, detail="IMAP not configured")
 
+    # Load already-known UIDs per user to avoid duplicates within the same user's mailbox
     result = await db.execute(
-        select(EmailMessage.imap_uid).where(EmailMessage.imap_uid.is_not(None))
+        select(EmailMessage.user_id, EmailMessage.imap_uid)
+        .where(EmailMessage.imap_uid.is_not(None))
     )
-    existing_uids = {row[0] for row in result.all()}
-
-    user_map = {u.email.lower(): u.id for u in users}
-    if fallback_user_id is None:
-        fallback_user_id = next((u.id for u in users if u.is_admin), None)
-    if fallback_user_id is None and users:
-        fallback_user_id = users[0].id
-
-    new_messages = await asyncio.to_thread(_fetch_from_imap, existing_uids)
+    # Build per-user set of known UIDs
+    known: dict[int, set[int]] = {}
+    for user_id, uid in result.all():
+        known.setdefault(user_id, set()).add(uid)
 
     count = 0
-    for m in new_messages:
-        to_lower = m["to_addr"].lower()
-        user_id = next(
-            (uid for email, uid in user_map.items() if email in to_lower),
-            fallback_user_id,
-        )
-        if user_id is None:
+    for user in users:
+        if not user.mail_password:
             continue
 
-        db.add(EmailMessage(
-            user_id=user_id,
-            direction="recv",
-            from_addr=m["from_addr"],
-            to_addr=m["to_addr"],
-            subject=m["subject"],
-            body=m["body"],
-            created_at=m["created_at"],
-            is_read=False,
-            imap_uid=m["uid"],
-        ))
-        count += 1
+        imap_password = decrypt_password(user.mail_password)
+        user_known_uids = known.get(user.id, set())
+
+        new_messages = await asyncio.to_thread(
+            _fetch_from_imap, user.mail_address, imap_password, user_known_uids
+        )
+
+        for m in new_messages:
+            try:
+                async with db.begin_nested():
+                    db.add(EmailMessage(
+                        user_id=user.id,
+                        direction="recv",
+                        from_addr=m["from_addr"],
+                        to_addr=m["to_addr"],
+                        subject=m["subject"],
+                        body=m["body"],
+                        created_at=m["created_at"],
+                        is_read=False,
+                        imap_uid=m["uid"],
+                    ))
+                user_known_uids.add(m["uid"])
+                count += 1
+            except IntegrityError:
+                pass
 
     if count > 0:
         await db.commit()

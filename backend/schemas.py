@@ -9,6 +9,7 @@ class LoginRequest(BaseModel):
 
 
 class RegisterRequest(BaseModel):
+    username: str
     email: EmailStr
     password: str
 
@@ -19,7 +20,9 @@ class TokenResponse(BaseModel):
 
 
 class UserProfile(BaseModel):
+    username: str
     email: str
+    mail_address: str
     created_at: datetime
     is_admin: bool
 

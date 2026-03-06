@@ -18,9 +18,9 @@ export async function renderProfile(onLogout: () => void): Promise<void> {
     const createdDate = new Date(profile.created_at).toLocaleDateString("ru-RU");
 
     if (profile.is_admin) {
-      await renderAdminProfile(app, profile.email, createdDate, onLogout);
+      await renderAdminProfile(app, profile.email, profile.mail_address, createdDate, onLogout);
     } else {
-      await renderUserProfile(app, profile.email, createdDate, onLogout);
+      await renderUserProfile(app, profile.email, profile.mail_address, createdDate, onLogout);
     }
   } catch {
     removeToken();
@@ -31,6 +31,7 @@ export async function renderProfile(onLogout: () => void): Promise<void> {
 async function renderAdminProfile(
   app: HTMLElement,
   email: string,
+  mailAddress: string,
   createdDate: string,
   onLogout: () => void
 ): Promise<void> {
@@ -41,6 +42,8 @@ async function renderAdminProfile(
       <h1>Профиль <span style="font-size:0.75rem;background:#2563eb;color:#fff;padding:2px 8px;border-radius:12px;vertical-align:middle">Администратор</span></h1>
       <label for="profile-email">E-mail</label>
       <input type="email" id="profile-email" value="${email}" disabled />
+      <label for="profile-mail-address">Почтовый адрес</label>
+      <input type="text" id="profile-mail-address" value="${mailAddress}" disabled />
       <p class="hint">Зарегистрирован: ${createdDate}</p>
       <hr />
       <h2>Сменить пароль</h2>
@@ -115,6 +118,7 @@ async function renderAdminProfile(
 async function renderUserProfile(
   app: HTMLElement,
   email: string,
+  mailAddress: string,
   createdDate: string,
   onLogout: () => void
 ): Promise<void> {
@@ -123,6 +127,8 @@ async function renderUserProfile(
       <h1>Профиль</h1>
       <label for="profile-email">E-mail</label>
       <input type="email" id="profile-email" value="${email}" disabled />
+      <label for="profile-mail-address">Почтовый адрес</label>
+      <input type="text" id="profile-mail-address" value="${mailAddress}" disabled />
       <p class="hint">Зарегистрирован: ${createdDate}</p>
       <hr />
       <h2>Сменить пароль</h2>

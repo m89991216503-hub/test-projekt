@@ -24,9 +24,8 @@ async def test_login_nonexistent_user(client, db_session):
 
 @pytest.mark.asyncio
 async def test_login_by_username(client, test_user):
-    # Login field without @ routes to username lookup → should fail (test_user has no username)
     resp = await client.post("/api/login", json={"login": "testuser", "password": "password123"})
-    assert resp.status_code == 401
+    assert resp.status_code == 200
 
 
 @pytest.mark.asyncio
@@ -37,7 +36,11 @@ async def test_login_missing_fields(client, db_session):
 
 @pytest.mark.asyncio
 async def test_register_success(client, db_session):
-    resp = await client.post("/api/register", json={"email": "new@example.com", "password": "secret123"})
+    resp = await client.post("/api/register", json={
+        "username": "newuser",
+        "email": "new@example.com",
+        "password": "secret123",
+    })
     assert resp.status_code == 201
     data = resp.json()
     assert "access_token" in data
@@ -46,11 +49,39 @@ async def test_register_success(client, db_session):
 
 @pytest.mark.asyncio
 async def test_register_duplicate_email(client, test_user):
-    resp = await client.post("/api/register", json={"email": "test@example.com", "password": "secret123"})
+    resp = await client.post("/api/register", json={
+        "username": "another",
+        "email": "test@example.com",
+        "password": "secret123",
+    })
+    assert resp.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_register_duplicate_username(client, test_user):
+    resp = await client.post("/api/register", json={
+        "username": "testuser",
+        "email": "other@example.com",
+        "password": "secret123",
+    })
     assert resp.status_code == 409
 
 
 @pytest.mark.asyncio
 async def test_register_short_password(client, db_session):
-    resp = await client.post("/api/register", json={"email": "new@example.com", "password": "12345"})
+    resp = await client.post("/api/register", json={
+        "username": "newuser",
+        "email": "new@example.com",
+        "password": "12345",
+    })
+    assert resp.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_register_invalid_username(client, db_session):
+    resp = await client.post("/api/register", json={
+        "username": "ab",
+        "email": "new@example.com",
+        "password": "secret123",
+    })
     assert resp.status_code == 422

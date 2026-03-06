@@ -7,6 +7,8 @@ async def test_get_profile(client, auth_header):
     assert resp.status_code == 200
     data = resp.json()
     assert data["email"] == "test@example.com"
+    assert data["username"] == "testuser"
+    assert data["mail_address"] == "testuser@school-pro100.ru"
     assert "created_at" in data
 
 

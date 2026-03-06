@@ -14,9 +14,12 @@ from models import EmailMessage
 def _smtp_send(from_addr: str, to_addr: str, subject: str, body: str) -> None:
     """Synchronous SMTP send — intended to run in a thread."""
     msg = MIMEMultipart()
-    msg["From"] = from_addr
+    msg["From"] = config.SMTP_USER
     msg["To"] = to_addr
     msg["Subject"] = subject
+    # If sending from a different address, add Reply-To so replies go there
+    if from_addr != config.SMTP_USER:
+        msg["Reply-To"] = from_addr
     msg.attach(MIMEText(body, "plain", "utf-8"))
 
     try:
